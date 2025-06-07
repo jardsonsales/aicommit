@@ -1,0 +1,72 @@
+diff --git a/travelex/config/fortify.php b/travelex/config/fortify.php
+index e2d0d85..ff97fa8 100644
+--- a/travelex/config/fortify.php
++++ b/travelex/config/fortify.php
+@@ -145,7 +145,7 @@
+
+     'features' => [
+         // Features::registration(),
+-        Features::resetPasswords(),
++        // Features::resetPasswords(),
+         // Features::emailVerification(),
+         Features::updateProfileInformation(),
+         Features::updatePasswords(),
+@@ -156,4 +156,4 @@
+         ]),
+     ],
+
+-];
+\ No newline at end of file
++];
+diff --git a/travelex/resources/views/auth/login.blade.php b/travelex/resources/views/auth/login.blade.php
+index 8bd8aaa..c9cde4c 100644
+--- a/travelex/resources/views/auth/login.blade.php
++++ b/travelex/resources/views/auth/login.blade.php
+@@ -12,6 +12,7 @@
+             </div>
+         @endsession
+
++        <!--
+         <form method="POST" action="{{ route('login') }}">
+             @csrf
+
+@@ -44,8 +45,10 @@
+                 </x-button>
+             </div>
+         </form>
++        -->
+
+-        <div class="mt-4 text-center">
++
++        <div class="text-center">
+             <a id="microsoft-login-btn" href="{{ route('microsoft.login') }}" class="inline-flex outline-none items-center px-4 py-2 border border-solid border-slate-300 rounded-md font-semibold text-slate-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition ease-in-out duration-150">
+             <span class="mr-1">
+                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="26px" height="26px">
+diff --git a/travelex/routes/fortify.php b/travelex/routes/fortify.php
+index ab81015..1249ed7 100644
+--- a/travelex/routes/fortify.php
++++ b/travelex/routes/fortify.php
+@@ -31,15 +31,17 @@
+             ->name('login');
+     }
+
+-    $limiter = config('fortify.limiters.login');
++    // $limiter = config('fortify.limiters.login');
+     $twoFactorLimiter = config('fortify.limiters.two-factor');
+     $verificationLimiter = config('fortify.limiters.verification', '6,1');
+
+-    Route::post(RoutePath::for('tvxboadmin', '/tvxboadmin'), [AuthenticatedSessionController::class, 'store'])
+-        ->middleware(array_filter([
+-            'guest:'.config('fortify.guard'),
+-            $limiter ? 'throttle:'.$limiter : null,
+-        ]));
++
++    // Commented to disable non-microsoft login
++    /* Route::post(RoutePath::for('tvxboadmin', '/tvxboadmin'), [AuthenticatedSessionController::class, 'store']) */
++    /*     ->middleware(array_filter([ */
++    /*         'guest:'.config('fortify.guard'), */
++    /*         $limiter ? 'throttle:'.$limiter : null, */
++    /*     ])); */
+
+     Route::post(RoutePath::for('logout', '/logout'), [AuthenticatedSessionController::class, 'destroy'])
+         ->middleware([config('fortify.auth_middleware', 'auth').':'.config('fortify.guard')])
