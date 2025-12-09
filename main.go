@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"log"
 	"os"
 	"os/exec"
-	_ "embed"
 
 	"google.golang.org/genai"
 )
@@ -13,7 +13,20 @@ import (
 //go:embed prompt.md
 var instructions []byte
 
+//go:embed prompt_description.md
+var instructions_description []byte
+
+var instructionsContent []byte
+
 func main() {
+
+	var usingDescription = false
+
+	if len(os.Args) > 1 {
+		if os.Args[1] == "-d" {
+			usingDescription = true
+		}
+	}
 
 	fileTmp, err := os.CreateTemp("", "aicommit-")
 	if err != nil {
@@ -35,11 +48,19 @@ func main() {
 		return
 	}
 
+	if os.Getenv("GEMINI_API_KEY") == "" {
+		log.Fatal("No Gemini API KEY set")
+		return
+	}
+
 	ctx := context.Background()
-	client, _ := genai.NewClient(ctx, &genai.ClientConfig{
+	client, err := genai.NewClient(ctx, &genai.ClientConfig{
 		APIKey:  os.Getenv("GEMINI_API_KEY"),
 		Backend: genai.BackendGeminiAPI,
 	})
+	if err != nil {
+		log.Fatalf("Failed to create client: %v", err)
+	}
 
 	// diff, err := os.ReadFile("diff.txt")
 	// if err != nil {
@@ -47,13 +68,20 @@ func main() {
 	// 	return
 	// }
 
+	if usingDescription == false {
+		instructionsContent = instructions
+	} else {
+		instructionsContent = instructions_description
+	}
+
 	config := &genai.GenerateContentConfig{
-		SystemInstruction: genai.NewContentFromText(string(instructions), genai.RoleUser),
+
+		SystemInstruction: genai.NewContentFromText(string(instructionsContent), genai.RoleUser),
 	}
 
 	result, _ := client.Models.GenerateContent(
 		ctx,
-		"gemini-2.0-flash",
+		"gemini-2.5-flash",
 		genai.Text(diffContent),
 		config,
 	)
