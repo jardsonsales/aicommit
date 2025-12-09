@@ -81,7 +81,7 @@ func main() {
 
 	result, _ := client.Models.GenerateContent(
 		ctx,
-		"gemini-2.5-flash",
+		"gemini-2.5-flash-lite",
 		genai.Text(diffContent),
 		config,
 	)
