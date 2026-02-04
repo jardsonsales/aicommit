@@ -43,7 +43,7 @@ func main() {
 	}
 
 	diffContent := string(output)
-	if(diffContent == "") {
+	if diffContent == "" {
 		log.Fatal("No staged changes")
 		return
 	}
@@ -79,12 +79,16 @@ func main() {
 		SystemInstruction: genai.NewContentFromText(string(instructionsContent), genai.RoleUser),
 	}
 
-	result, _ := client.Models.GenerateContent(
+	result, err := client.Models.GenerateContent(
 		ctx,
 		"gemini-2.5-flash-lite",
 		genai.Text(diffContent),
 		config,
 	)
+
+	if err != nil {
+		log.Fatalf("Failed to generate content: %v", err)
+	}
 
 	fileTmp.Write([]byte(result.Text()))
 
