@@ -60,6 +60,7 @@ func main() {
 	})
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
+		return
 	}
 
 	// diff, err := os.ReadFile("diff.txt")
@@ -88,6 +89,7 @@ func main() {
 
 	if err != nil {
 		log.Fatalf("Failed to generate content: %v", err)
+		return
 	}
 
 	fileTmp.Write([]byte(result.Text()))
