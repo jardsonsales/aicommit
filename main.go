@@ -6,8 +6,15 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 
-	"google.golang.org/genai"
+	openai "github.com/sashabaranov/go-openai"
+)
+
+const (
+	apiBaseURL = "https://api.deepseek.com" // e.g. "https://api.openai.com/v1"
+	apiKeyEnv  = "DEEPSEEK_TOKEN" // e.g. "OPENAI_API_KEY"
+	model      = "deepseek-v4-flash" // e.g. "gpt-4o-mini"
 )
 
 //go:embed prompt.md
@@ -19,7 +26,6 @@ var instructions_description []byte
 var instructionsContent []byte
 
 func main() {
-
 	var usingDescription = false
 
 	if len(os.Args) > 1 {
@@ -39,60 +45,71 @@ func main() {
 	output, err := process.CombinedOutput()
 	if err != nil {
 		log.Fatal(err)
-		return
 	}
 
 	diffContent := string(output)
 	if diffContent == "" {
 		log.Fatal("No staged changes")
-		return
 	}
 
-	if os.Getenv("GEMINI_API_KEY") == "" {
-		log.Fatal("No Gemini API KEY set")
-		return
+	if apiKeyEnv == "" {
+		log.Fatal("apiKeyEnv is not configured")
 	}
 
-	ctx := context.Background()
-	client, err := genai.NewClient(ctx, &genai.ClientConfig{
-		APIKey:  os.Getenv("GEMINI_API_KEY"),
-		Backend: genai.BackendGeminiAPI,
-	})
-	if err != nil {
-		log.Fatalf("Failed to create client: %v", err)
-		return
+	apiKey := os.Getenv(apiKeyEnv)
+	if apiKey == "" {
+		log.Fatalf("No API key set (env: %s)", apiKeyEnv)
 	}
 
-	// diff, err := os.ReadFile("diff.txt")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// 	return
-	// }
+	if apiBaseURL == "" {
+		log.Fatal("apiBaseURL is not configured")
+	}
 
-	if usingDescription == false {
-		instructionsContent = instructions
-	} else {
+	if model == "" {
+		log.Fatal("model is not configured")
+	}
+
+	config := openai.DefaultConfig(apiKey)
+	config.BaseURL = apiBaseURL
+
+	client := openai.NewClientWithConfig(config)
+
+	if usingDescription {
 		instructionsContent = instructions_description
+	} else {
+		instructionsContent = instructions
 	}
 
-	config := &genai.GenerateContentConfig{
-
-		SystemInstruction: genai.NewContentFromText(string(instructionsContent), genai.RoleUser),
-	}
-
-	result, err := client.Models.GenerateContent(
-		ctx,
-		"gemini-3.1-flash-lite",
-		genai.Text(diffContent),
-		config,
+	resp, err := client.CreateChatCompletion(
+		context.Background(),
+		openai.ChatCompletionRequest{
+			Model: model,
+			Messages: []openai.ChatCompletionMessage{
+				{
+					Role:    openai.ChatMessageRoleSystem,
+					Content: string(instructionsContent),
+				},
+				{
+					Role:    openai.ChatMessageRoleUser,
+					Content: diffContent,
+				},
+			},
+		},
 	)
-
 	if err != nil {
 		log.Fatalf("Failed to generate content: %v", err)
-		return
 	}
 
-	fileTmp.Write([]byte(result.Text()))
+	if len(resp.Choices) == 0 {
+		log.Fatal("Empty response from API")
+	}
+
+	commitMessage := strings.TrimSpace(resp.Choices[0].Message.Content)
+	if commitMessage == "" {
+		log.Fatal("Empty commit message from API")
+	}
+
+	fileTmp.Write([]byte(commitMessage))
 
 	cmd := exec.Command("git", "commit", "-F", fileTmp.Name(), "--edit")
 	cmd.Stdin = os.Stdin
